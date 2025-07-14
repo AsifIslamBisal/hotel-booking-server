@@ -24,7 +24,7 @@ async function run() {
     // Connect the client to the server (optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
-    // await client.db("admin").command({ ping: 1 });
+    await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
     const roomsCollection = client.db('hotel-booking').collection('rooms');
@@ -49,6 +49,22 @@ async function run() {
         res.status(500).send('Error fetching room details');
       }
     });
+
+    // Get bookings by userId
+app.get('/bookings', async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).send('User ID required');
+
+  try {
+    const cursor = bookingCollection.find({ userId });
+    const bookings = await cursor.toArray();
+    res.status(200).send(bookings);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error fetching bookings');
+  }
+});
+
 
     // Book a room
     app.post('/bookings', async (req, res) => {
@@ -79,7 +95,8 @@ async function run() {
           { $set: { isBooked: true } }
         );
 
-        res.status(201).send({ message: 'Room booked successfully', booking: result.ops[0] });
+        res.status(201).send({ message: 'Room booked successfully', bookingId: result.insertedId });
+
       } catch (error) {
         console.error(error);
         res.status(500).send('Error booking room');
