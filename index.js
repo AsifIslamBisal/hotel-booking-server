@@ -1,8 +1,8 @@
 const express = require('express');
+const app = express();
 const cors = require('cors');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const app = express();
 const port = process.env.PORT || 5000;
 
 app.use(cors());
@@ -10,7 +10,6 @@ app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.olaoh3z.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -21,23 +20,28 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server (optional starting in v4.7)
+    
     // await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    console.log("✅ Connected to MongoDB successfully!");
 
+    
     const roomsCollection = client.db('hotel-booking').collection('rooms');
     const bookingCollection = client.db('hotel-booking').collection('bookings');
 
-    // Fetch all rooms
+    //  Fetch all rooms
     app.get('/rooms', async (req, res) => {
-      const cursor = roomsCollection.find();
-      const result = await cursor.toArray();
-      res.send(result);
+      try {
+        const cursor = roomsCollection.find();
+        const result = await cursor.toArray();
+        res.status(200).send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send('Error fetching rooms');
+      }
     });
 
-    // Get specific room details
+    //  Get specific room details
     app.get('/rooms/:id', async (req, res) => {
       const { id } = req.params;
       try {
@@ -50,23 +54,22 @@ async function run() {
       }
     });
 
-    // Get bookings by userId
-app.get('/bookings', async (req, res) => {
-  const { userId } = req.query;
-  if (!userId) return res.status(400).send('User ID required');
+    //  Get bookings by userId
+    app.get('/bookings', async (req, res) => {
+      const { userId } = req.query;
+      if (!userId) return res.status(400).send('User ID required');
 
-  try {
-    const cursor = bookingCollection.find({ userId });
-    const bookings = await cursor.toArray();
-    res.status(200).send(bookings);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send('Error fetching bookings');
-  }
-});
+      try {
+        const cursor = bookingCollection.find({ userId });
+        const bookings = await cursor.toArray();
+        res.status(200).send(bookings);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send('Error fetching bookings');
+      }
+    });
 
-
-    // Book a room
+    //  Book a room
     app.post('/bookings', async (req, res) => {
       const { roomId, userId, date, price, image, roomName } = req.body;
 
@@ -76,7 +79,6 @@ app.get('/bookings', async (req, res) => {
 
         if (room.isBooked) return res.status(400).send('Room already booked');
 
-        // Create new booking
         const newBooking = {
           userId,
           roomId,
@@ -84,12 +86,11 @@ app.get('/bookings', async (req, res) => {
           price,
           image,
           roomName,
-          status: 'Pending',  // Default status
+          status: 'Pending',
         };
 
         const result = await bookingCollection.insertOne(newBooking);
 
-        // Update room status to booked
         await roomsCollection.updateOne(
           { _id: new ObjectId(roomId) },
           { $set: { isBooked: true } }
@@ -103,7 +104,7 @@ app.get('/bookings', async (req, res) => {
       }
     });
 
-    // Cancel booking
+    
     app.delete('/cancel-booking/:id', async (req, res) => {
       const { id } = req.params;
 
@@ -111,11 +112,12 @@ app.get('/bookings', async (req, res) => {
         const booking = await bookingCollection.findOne({ _id: new ObjectId(id) });
         if (!booking) return res.status(404).send('Booking not found');
 
-        // Update the corresponding room to available
         await roomsCollection.updateOne(
           { _id: new ObjectId(booking.roomId) },
           { $set: { isBooked: false } }
         );
+
+        await bookingCollection.deleteOne({ _id: new ObjectId(id) });
 
         res.status(200).send({ message: 'Booking canceled successfully' });
       } catch (error) {
@@ -125,16 +127,17 @@ app.get('/bookings', async (req, res) => {
     });
 
   } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
+    // client.close() 
   }
 }
 run().catch(console.dir);
+
 
 app.get('/', (req, res) => {
   res.send('Hotel Booking Server is running');
 });
 
+
 app.listen(port, () => {
-  console.log(`Hotel Booking server is running on port: ${port}`);
+  console.log(`🚀 Hotel Booking server is running on port: ${port}`);
 });
